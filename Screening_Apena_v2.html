@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Screening AOS - Sueño Salud Diagnóstica</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f7f6; color: #333; padding: 20px; line-height: 1.6; }
+        .container { max-width: 850px; margin: 0 auto; background: white; padding: 40px; border-radius: 12px; box-shadow: 0 10px 25px rgba(0,0,0,0.05); }
+        
+        h1 { color: #2c3e50; border-bottom: 2px solid #3498db; padding-bottom: 10px; text-align: center; }
+        h2 { color: #2c3e50; font-size: 20px; border-left: 4px solid #3498db; padding-left: 10px; }
+        
+        /* Sección de datos del paciente (Importada) */
+        .patient-info { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 30px; background: #f8f9fa; padding: 25px; border-radius: 10px; border: 1px solid #e9ecef; }
+        .input-group { display: flex; flex-direction: column; }
+        .input-group label { font-weight: 600; margin-bottom: 8px; color: #34495e; }
+        .input-group input { padding: 12px; border: 2px solid #dee2e6; border-radius: 6px; font-size: 16px; outline: none; }
+        
+        /* Estructura del cuestionario */
+        .section { margin-bottom: 30px; page-break-inside: avoid; break-inside: avoid; }
+        .question { margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #eee; padding-bottom: 10px;}
+        
+        /* Tabla de Epworth */
+		.epworth-table { 
+            width: 100%; 
+            border-collapse: collapse; 
+            margin-top: 10px; 
+            table-layout: fixed; /* Fuerza a respetar los anchos */
+        }
+        .epworth-table th, .epworth-table td { 
+            border: 1px solid #ddd; 
+            padding: 8px; /* Padding ligeramente reducido */
+            text-align: center; 
+            font-size: 14px; /* Tamaño de letra controlado para el PDF */
+        }
+        /* La primera columna (texto) toma el 60% del ancho */
+        .epworth-table th:first-child, .epworth-table td:first-child { 
+            background-color: #f8f9fa; 
+            text-align: left; 
+            width: 60%; 
+        }
+        /* Las columnas de opciones (0, 1, 2, 3) toman el 10% cada una */
+        .epworth-table th:not(:first-child), .epworth-table td:not(:first-child) { 
+            width: 10%; 
+        }
+        /* Evita que las filas se corten a la mitad en el PDF */
+        tr { 
+            page-break-inside: avoid; 
+            break-inside: avoid; 
+        }
+        
+        /* Botones (Importados y adaptados) */
+        .actions { display: flex; gap: 15px; margin-top: 40px; flex-wrap: wrap; }
+        button { flex: 1; min-width: 200px; padding: 16px; color: white; border: none; border-radius: 8px; font-size: 16px; cursor: pointer; font-weight: 700; }
+        .btn-calc { background-color: #3498db; }
+        .btn-calc:hover { background-color: #2980b9; }
+        .btn-pdf { background-color: #27ae60; display: none; }
+        .btn-print { background-color: #7f8c8d; display: none; }
+        
+        /* Resultados */
+        .results { margin-top: 30px; padding: 25px; border-radius: 8px; display: none; page-break-inside: avoid; break-inside: avoid; }
+        .high-risk { background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        .low-risk { background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .warning { font-weight: bold; font-size: 1.1em; }
+
+        /* Estilos nativos de impresión (Importados) */
+        @media print {
+            body { background: white; padding: 0; }
+            .container { box-shadow: none; border: none; padding: 0; max-width: 100%; }
+            .actions { display: none !important; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container" id="documento-area">
+    <h1>Cribado Clínico: Poligrafía Respiratoria</h1>
+    
+    <div class="patient-info">
+        <div class="input-group">
+            <label>Nombre y Apellido del Paciente</label>
+            <input type="text" id="nombrePaciente" placeholder="Ej. Juan Pérez">
+        </div>
+        <div class="input-group">
+            <label>Fecha de Evaluación</label>
+            <input type="date" id="fechaEval">
+        </div>
+    </div>
+
+    <form id="screeningForm">
+        <div class="section">
+            <h2>1. Cuestionario STOP-Bang</h2>
+            <p>Responda Sí (1) o No (0) a los siguientes criterios:</p>
+            
+            <div class="question">
+                <label><b>S</b>noring: ¿Ronca fuerte?</label>
+                <input type="checkbox" class="stopbang-calc" value="1">
+            </div>
+            <div class="question">
+                <label><b>T</b>ired: ¿Siente cansancio, fatiga o somnolencia diurna?</label>
+                <input type="checkbox" class="stopbang-calc" value="1">
+            </div>
+            <div class="question">
+                <label><b>O</b>bserved: ¿Alguien ha observado que deja de respirar mientras duerme?</label>
+                <input type="checkbox" class="stopbang-calc" value="1">
+            </div>
+            <div class="question">
+                <label><b>P</b>ressure: ¿Tiene o está en tratamiento por presión arterial alta?</label>
+                <input type="checkbox" class="stopbang-calc" value="1">
+            </div>
+            <div class="question">
+                <label><b>B</b>MI: ¿Su Índice de Masa Corporal es mayor a 35 kg/m²?</label>
+                <input type="checkbox" class="stopbang-calc" value="1">
+            </div>
+            <div class="question">
+                <label><b>A</b>ge: ¿Tiene más de 50 años?</label>
+                <input type="checkbox" class="stopbang-calc" value="1">
+            </div>
+            <div class="question">
+                <label><b>N</b>eck: ¿Circunferencia del cuello mayor a 40 cm?</label>
+                <input type="checkbox" class="stopbang-calc" value="1">
+            </div>
+            <div class="question">
+                <label><b>G</b>ender: ¿Sexo biológico masculino?</label>
+                <input type="checkbox" class="stopbang-calc" value="1">
+            </div>
+        </div>
+
+        <div class="html2pdf__page-break"></div> <div class="section">
+            <h2>2. Escala de Somnolencia de Epworth (ESS)</h2>
+            <p>Probabilidad de quedarse dormido en las siguientes situaciones (0 = Nula, 3 = Alta):</p>
+            
+            <table class="epworth-table">
+                <thead>
+                    <tr>
+                        <th>Situación</th>
+                        <th>0</th><th>1</th><th>2</th><th>3</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>Sentado y leyendo</td>
+                        <td><input type="radio" name="ep1" value="0" required></td>
+                        <td><input type="radio" name="ep1" value="1"></td>
+                        <td><input type="radio" name="ep1" value="2"></td>
+                        <td><input type="radio" name="ep1" value="3"></td>
+                    </tr>
+                    <tr>
+                        <td>Viendo la televisión</td>
+                        <td><input type="radio" name="ep2" value="0" required></td>
+                        <td><input type="radio" name="ep2" value="1"></td>
+                        <td><input type="radio" name="ep2" value="2"></td>
+                        <td><input type="radio" name="ep2" value="3"></td>
+                    </tr>
+                    <tr>
+                        <td>Sentado, inactivo en un lugar público (ej. teatro, reunión)</td>
+                        <td><input type="radio" name="ep3" value="0" required></td>
+                        <td><input type="radio" name="ep3" value="1"></td>
+                        <td><input type="radio" name="ep3" value="2"></td>
+                        <td><input type="radio" name="ep3" value="3"></td>
+                    </tr>
+                    <tr>
+                        <td>Como pasajero de un coche durante 1 hora sin descansos</td>
+                        <td><input type="radio" name="ep4" value="0" required></td>
+                        <td><input type="radio" name="ep4" value="1"></td>
+                        <td><input type="radio" name="ep4" value="2"></td>
+                        <td><input type="radio" name="ep4" value="3"></td>
+                    </tr>
+                    <tr>
+                        <td>Tumbado descansando por la tarde, cuando las circunstancias lo permiten</td>
+                        <td><input type="radio" name="ep5" value="0" required></td>
+                        <td><input type="radio" name="ep5" value="1"></td>
+                        <td><input type="radio" name="ep5" value="2"></td>
+                        <td><input type="radio" name="ep5" value="3"></td>
+                    </tr>
+                    <tr>
+                        <td>Sentado charlando con alguien</td>
+                        <td><input type="radio" name="ep6" value="0" required></td>
+                        <td><input type="radio" name="ep6" value="1"></td>
+                        <td><input type="radio" name="ep6" value="2"></td>
+                        <td><input type="radio" name="ep6" value="3"></td>
+                    </tr>
+                    <tr>
+                        <td>Sentado en silencio después de la comida (sin alcohol)</td>
+                        <td><input type="radio" name="ep7" value="0" required></td>
+                        <td><input type="radio" name="ep7" value="1"></td>
+                        <td><input type="radio" name="ep7" value="2"></td>
+                        <td><input type="radio" name="ep7" value="3"></td>
+                    </tr>
+                    <tr>
+                        <td>En un coche, mientras está parado unos minutos en el tráfico</td>
+                        <td><input type="radio" name="ep8" value="0" required></td>
+                        <td><input type="radio" name="ep8" value="1"></td>
+                        <td><input type="radio" name="ep8" value="2"></td>
+                        <td><input type="radio" name="ep8" value="3"></td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </form>
+
+    <div id="resultadoFinal" class="results">
+        <h3 id="tituloResultado" style="margin-top: 0;"></h3>
+        <p><strong>Puntaje STOP-Bang:</strong> <span id="scoreStopBang"></span>/8 <span id="interStopBang"></span></p>
+        <p><strong>Puntaje Epworth:</strong> <span id="scoreEpworth"></span>/24 <span id="interEpworth"></span></p>
+        <hr style="border-top: 1px solid rgba(0,0,0,0.1);">
+        <p class="warning" id="recomendacionClinica"></p>
+    </div>
+
+    <div class="actions" id="seccion-botones">
+        <button class="btn-calc" onclick="calcularTriage()">Calcular y Analizar Triage</button>
+        <button class="btn-pdf" id="btnDescargar" onclick="guardarPDF()">Descargar PDF</button>
+        <button class="btn-print" id="btnImprimir" onclick="window.print()">Imprimir / Guardar como PDF</button>
+    </div>
+
+</div>
+
+<script>
+    // Inicializar fecha actual
+    document.getElementById('fechaEval').valueAsDate = new Date();
+
+    function calcularTriage() {
+        // 1. Calcular STOP-Bang
+        let stopBangScore = 0;
+        const checkboxes = document.querySelectorAll('.stopbang-calc');
+        checkboxes.forEach((cb) => {
+            if (cb.checked) stopBangScore += parseInt(cb.value);
+        });
+
+        // 2. Calcular Epworth
+        let epworthScore = 0;
+        let epworthCompleto = true;
+        for (let i = 1; i <= 8; i++) {
+            const radioSeleccionado = document.querySelector(`input[name="ep${i}"]:checked`);
+            if (radioSeleccionado) {
+                epworthScore += parseInt(radioSeleccionado.value);
+            } else {
+                epworthCompleto = false;
+            }
+        }
+
+        if (!epworthCompleto) {
+            alert("Por favor, complete todas las preguntas de la Escala de Epworth antes de calcular.");
+            return;
+        }
+
+        // 3. Lógica Clínica y Triage
+        const resultDiv = document.getElementById('resultadoFinal');
+        const titulo = document.getElementById('tituloResultado');
+        const rec = document.getElementById('recomendacionClinica');
+        
+        document.getElementById('scoreStopBang').innerText = stopBangScore;
+        document.getElementById('scoreEpworth').innerText = epworthScore;
+
+        let interpretacionSB = stopBangScore >= 3 ? "(Riesgo Moderado/Alto de AOS)" : "(Riesgo Bajo de AOS)";
+        let interpretacionEP = epworthScore > 10 ? "(Somnolencia Diurna Excesiva)" : "(Normal)";
+        
+        document.getElementById('interStopBang').innerText = interpretacionSB;
+        document.getElementById('interEpworth').innerText = interpretacionEP;
+
+        resultDiv.style.display = "block";
+        resultDiv.className = "results"; // Reset clases
+
+        // Árbol de decisiones
+        if (stopBangScore >= 3) {
+            resultDiv.classList.add('high-risk');
+            titulo.innerText = "🚨 INDICACIÓN DE POLIGRAFÍA RESPIRATORIA";
+            
+            if (epworthScore > 10) {
+                rec.innerText = "Triage: PRIORIDAD ALTA. El paciente presenta un perfil de alto riesgo anatómico/clínico (STOP-Bang) acompañado de repercusión funcional significativa (Somnolencia Excesiva). Se justifica derivación inmediata al servicio domiciliario.";
+            } else {
+                rec.innerText = "Triage: INDICADO. Riesgo anatómico presente justificable para estudio, aunque sin repercusión de somnolencia diurna severa. Proceder con el examen para descartar eventos obstructivos.";
+            }
+        } else {
+            resultDiv.classList.add('low-risk');
+            titulo.innerText = "✅ NO CUMPLE CRITERIOS PRIMARIOS";
+            
+            if (epworthScore > 10) {
+                rec.innerText = "Triage: OBSERVAR / DIAGNÓSTICO DIFERENCIAL. Bajo riesgo estructural de AOS, pero con somnolencia anormal. Evaluar otras causas de fatiga (higiene del sueño, fármacos, metabólico) antes de indicar poligrafía.";
+            } else {
+                rec.innerText = "Triage: NO INDICADO. Bajo riesgo de AOS y sin somnolencia significativa. No requiere poligrafía respiratoria en este momento.";
+            }
+        }
+
+        // Mostrar botones de exportación
+        document.getElementById('btnDescargar').style.display = "block";
+        document.getElementById('btnImprimir').style.display = "block";
+    }
+
+    // Lógica de exportación a PDF (Copiada del original)
+    async function guardarPDF() {
+        // Hacemos scroll hacia arriba para evitar que html2canvas capture en blanco
+        window.scrollTo(0, 0);
+
+        const nombre = document.getElementById('nombrePaciente').value.trim() || "paciente_aos";
+        const fecha = document.getElementById('fechaEval').value;
+        const filename = `${fecha}_Triage_${nombre.toLowerCase().replace(/\s+/g, '')}.pdf`;
+        
+        const element = document.getElementById('documento-area');
+        const buttons = document.getElementById('seccion-botones');
+        
+        buttons.style.display = 'none';
+
+        const opt = {
+            margin: [15, 15, 15, 15],
+            filename: filename,
+            image: { type: 'jpeg', quality: 0.98 },
+            html2canvas: { 
+                scale: 2, 
+                scrollY: 0, 
+                useCORS: true 
+            },
+            jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+            pagebreak: { mode: ['css', 'legacy'] }
+        };
+
+        try {
+            await html2pdf().set(opt).from(element).save();
+        } catch (e) {
+            console.error("PDF Error:", e);
+            alert("Error al generar el PDF. Por favor, usa el botón 'Imprimir / Guardar como PDF'.");
+        } finally {
+            buttons.style.display = 'flex';
+        }
+    }
+</script>
+
+</body>
+</html>
